@@ -163,14 +163,20 @@ export function FormStrip({ games }: { games: { id: string; rank: number; player
         <span
           key={g.id}
           className={`form-cell ${g.rank === 1 ? "win" : g.rank === g.players ? "last" : ""}`}
-          data-tip={`${g.rank === 1 ? "Win" : `${ordinal(g.rank)} of ${g.players}`} · ${g.vp} VP · ${new Date(g.t * 1000).toLocaleString()}`}
+          data-tip={`${placeLabel(g.rank, g.players)} (${formatName(g.players)}) · ${g.vp} VP · ${new Date(g.t * 1000).toLocaleString()}`}
         >
-          {g.rank === 1 ? "W" : g.rank}
+          {g.rank === 1 ? "W" : g.players === 2 ? "L" : g.rank}
         </span>
       ))}
     </div>
   );
 }
+
+/** "Win", "Loss" (1v1) or "3rd/4". */
+export const placeLabel = (rank: number, players: number) =>
+  rank === 1 ? "Win" : players === 2 ? "Loss" : `${ordinal(rank)}/${players}`;
+
+export const formatName = (players: number) => (players === 2 ? "1v1" : `${players}P`);
 
 export const ordinal = (n: number) => `${n}${["th", "st", "nd", "rd"][n % 100 >> 3 === 1 ? 0 : n % 10] ?? "th"}`;
 

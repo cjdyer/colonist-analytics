@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { loadPlayers, type PlayerSummary } from "../data";
 import { api, apiEnabled, ApiError, divisionName, i18n, type HistoryPlayer, type RankedMode } from "../api";
 import { LEADERBOARD_MODES, PLAYER_COLORS, QUEUES, label, mapName } from "../enums";
@@ -7,7 +7,7 @@ import {
   byDayPart, byPace, byQueue, bySeat, closeness, edge, fair, fromHistory, fromSnapshot, perDay, placements,
   rate, record, rivals, sessions, significant, streak, weekGrid, type PlayerGame,
 } from "../insights";
-import { BarChart, Card, Empty, FormStrip, Insight, Loaded, RateRows, SeatBadge, Swatch, Tile, WeekHeatmap, ordinal } from "../components";
+import { BarChart, Card, Empty, FormStrip, Insight, Loaded, RateRows, SeatBadge, Swatch, Tile, WeekHeatmap, formatName, ordinal, placeLabel } from "../components";
 import { ago, duration, fixed, flag, int, pct, playerPath, signedPp } from "../format";
 import { useAsync, useTitle } from "../hooks";
 
@@ -17,6 +17,8 @@ function Summary({ games }: { games: PlayerGame[] }) {
   const rec = record(games);
   const s = streak(games);
   const d = edge(rec);
+  const formats = formatCounts(games);
+  const mixed = formats.length > 1;
   return (
     <div className="tiles">
       <Tile
@@ -24,8 +26,17 @@ function Summary({ games }: { games: PlayerGame[] }) {
         value={pct(rate(rec), 0)}
         sub={<><span className={`delta ${d >= 0 ? "pos" : "neg"}`}>{signedPp(d)}</span> vs fair share of {pct(fair(rec), 0)}</>}
       />
-      <Tile label="Avg finish" value={rec.n ? fixed(rec.place / rec.n, 2) : "–"} sub={`${rec.w} wins · ${rec.n - rec.w} losses`} />
-      <Tile label="Avg VP" value={rec.n ? fixed(rec.vp / rec.n, 1) : "–"} />
+      {mixed ? (
+        <>
+          <Tile label="Record" value={`${rec.w}–${rec.n - rec.w}`} sub="wins – losses" />
+          <Tile label="Formats" value={formats.map(([p, n]) => `${n} ${formatName(p)}`).join(" · ")} sub="Pick one format above for averages" />
+        </>
+      ) : (
+        <>
+          <Tile label="Avg finish" value={rec.n ? fixed(rec.place / rec.n, 2) : "–"} sub={`${rec.w} wins · ${rec.n - rec.w} losses`} />
+          <Tile label="Avg VP" value={rec.n ? fixed(rec.vp / rec.n, 1) : "–"} sub={games[0]?.target ? `${games[0].target} to win` : undefined} />
+        </>
+      )}
       <Tile
         label="Current streak"
         value={s ? <span className={`delta ${s.won ? "pos" : "neg"}`}>{s.n}{s.won ? "W" : "L"}</span> : "–"}
@@ -79,7 +90,7 @@ function QueueTable({ games }: { games: PlayerGame[] }) {
 
 function Placements({ games }: { games: PlayerGame[] }) {
   const p = placements(games);
-  if (p.n < 5) return null;
+  if (p.n < 5 || p.players === 2) return null;
   const max = Math.max(...p.counts);
   return (
     <Card title="Finishing places" sub={`${p.players}-player games. The line marks an even ${pct(1 / p.players, 0)} share.`}>
@@ -101,13 +112,14 @@ function Placements({ games }: { games: PlayerGame[] }) {
 
 function CloseGames({ games }: { games: PlayerGame[] }) {
   const c = closeness(games);
+  const duel = games.every((g) => g.players === 2);
   if (c.losses + c.wins < 10) return null;
   return (
     <Card title="Close games" sub="How far you were from the winner. Games where you quit are left out.">
       <div className="insights">
         <Insight value={`${c.oneShort} of ${c.losses}`}>losses were by a <strong>single VP</strong>. Those are the games one more card or road would have won.</Insight>
         <Insight value={fixed(c.avgShort, 1)}>VP short of the winner, on average, when you lose.</Insight>
-        <Insight value={`${c.clutch} of ${c.wins}`}>wins came with the runner-up <strong>one VP behind</strong>.</Insight>
+        <Insight value={`${c.clutch} of ${c.wins}`}>wins came with {duel ? "your opponent" : "the runner-up"} <strong>one VP behind</strong>.</Insight>
       </div>
     </Card>
   );
@@ -129,7 +141,7 @@ function SeatCard({ games }: { games: PlayerGame[] }) {
   if (seats.every((s) => !s.n)) return null;
   return (
     <Card title="By seat" sub={`Play order in ${players}-player games.`}>
-      <RateRows rows={seats.map((rec, i) => ({ label: <><SeatBadge n={i + 1} />{i === 0 ? "First" : `Seat ${i + 1}`}</>, rec }))} />
+      <RateRows rows={seats.map((rec, i) => ({ label: <><SeatBadge n={i + 1} />{players === 2 ? (i === 0 ? "Going first" : "Going second") : i === 0 ? "First" : `Seat ${i + 1}`}</>, rec }))} />
     </Card>
   );
 }
@@ -278,7 +290,7 @@ function MatchHistory({ games, me, maps }: { games: PlayerGame[]; me?: string; m
           <tbody>
             {list.slice(0, shown).map((g) => (
               <tr key={g.id} className={g.won ? "row-win" : ""}>
-                <td><span className={`place ${g.won ? "place-win" : g.rank === g.players ? "place-last" : ""}`}>{g.won ? "Win" : `${ordinal(g.rank)}/${g.players}`}</span>{g.quit && <span className="tag neg">quit</span>}</td>
+                <td><span className={`place ${g.won ? "place-win" : g.rank === g.players ? "place-last" : ""}`}>{placeLabel(g.rank, g.players)}</span>{g.quit && <span className="tag neg">quit</span>}</td>
                 <td>{label(QUEUES, g.queue)}{maps?.get(g.id) ? <small className="muted"> · {mapName(maps.get(g.id)!)}</small> : null}</td>
                 <td className="num">{g.vp}{g.target ? <small>/{g.target}</small> : null}</td>
                 <td className="num">{g.order || "–"}</td>
@@ -376,12 +388,52 @@ function Ladders({ modes }: { modes?: PlayerSummary["modes"] }) {
   );
 }
 
-function Analysis({ games, name, userId, maps }: { games: PlayerGame[]; name?: string; userId?: string; maps?: Map<string, number> }) {
-  if (!games.length) return <Empty>No finished games in this player's recent history.</Empty>;
+/** [players, games] per table size, most played first. */
+function formatCounts(games: PlayerGame[]): [number, number][] {
+  const by = new Map<number, number>();
+  for (const g of games) by.set(g.players, (by.get(g.players) ?? 0) + 1);
+  return [...by.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+/** Splits 1v1 from 4P, since places, VP and seats mean different things in each.
+ *  Defaults to the format the player plays most; kept in the URL as ?p=. */
+function useFormat(games: PlayerGame[]) {
+  const [params, setParams] = useSearchParams();
+  const formats = formatCounts(games);
+  const raw = params.get("p");
+  const selected: number | "all" = raw === "all" ? "all" : formats.some(([p]) => String(p) === raw) ? Number(raw) : (formats[0]?.[0] ?? "all");
+  const select = (p: number | "all") => setParams(p === formats[0]?.[0] ? {} : { p: String(p) }, { replace: true });
+  const shown = selected === "all" ? games : games.filter((g) => g.players === selected);
+  return { formats, selected, select, shown };
+}
+
+function FormatFilter({ formats, selected, select, total }: ReturnType<typeof useFormat> & { total: number }) {
+  if (formats.length < 2) return null;
+  return (
+    <div className="filters">
+      <div className="filter-group">
+        <span className="filter-label">Format</span>
+        <div className="chip-row" aria-label="Game format">
+          {formats.map(([p, n]) => (
+            <button key={p} className={`chip ${selected === p ? "on" : ""}`} onClick={() => select(p)}>{formatName(p)} <small>{n}</small></button>
+          ))}
+          <button className={`chip ${selected === "all" ? "on" : ""}`} onClick={() => select("all")}>All <small>{total}</small></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Analysis({ games: all, name, userId, maps }: { games: PlayerGame[]; name?: string; userId?: string; maps?: Map<string, number> }) {
+  const format = useFormat(all);
+  const games = format.shown;
+  if (!all.length) return <Empty>No finished games in this player's recent history.</Empty>;
+  const duel = games.every((g) => g.players === 2);
   return (
     <>
+      <FormatFilter {...format} total={all.length} />
       <Summary games={games} />
-      <Card title="Recent form" sub="Newest first. W = win, numbers are finishing places.">
+      <Card title="Recent form" sub={`Newest first. W = win, ${duel ? "L = loss" : "numbers are finishing places"}.`}>
         <FormStrip games={games.slice(0, 30)} />
       </Card>
       {name && <RankedSection name={name} />}
