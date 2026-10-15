@@ -1,0 +1,79 @@
+name: Crawl & deploy
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * *" # daily, 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      top_n:
+        description: "Players per leaderboard to crawl"
+        default: "200"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  crawl:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write # commit the refreshed snapshot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Crawl colonist.io
+        env:
+          TOP_N: ${{ github.event.inputs.top_n || '200' }}
+        run: node scripts/crawl.mjs
+      - name: Commit snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data
+          git diff --cached --quiet && exit 0
+          git commit -m "data: snapshot $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push
+
+  build:
+    needs: crawl
+    if: always() && (needs.crawl.result == 'success' || needs.crawl.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main # pick up the commit the crawl job just pushed
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          # Repo variable (Settings → Secrets and variables → Actions → Variables). Optional.
+          VITE_API_BASE: ${{ vars.API_BASE_URL }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
