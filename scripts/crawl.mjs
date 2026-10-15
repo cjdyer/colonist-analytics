@@ -125,12 +125,18 @@ function summarisePlayer(username, userId, games) {
   const seat = [0, 1, 2, 3].map(() => [0, 0]);
   let n = 0, w = 0, vp = 0, quits = 0;
   const recent = [];
+  const q = {}; // eloType -> [games, wins, sum of places, sum of VP]
   for (const g of games) {
     const me = g.players?.find((p) => String(p.userId) === String(userId));
     if (!g.finished || !me) continue;
     n++;
     const won = me.rank === 1;
     if (won) w++;
+    const tally = (q[num(g.setting?.eloType)] ??= [0, 0, 0, 0]);
+    tally[0]++;
+    tally[1] += won ? 1 : 0;
+    tally[2] += num(me.rank);
+    tally[3] += num(me.points);
     vp += num(me.points);
     if (me.quitWithPenalty) quits++;
     const o = num(me.playOrder);
@@ -149,7 +155,7 @@ function summarisePlayer(username, userId, games) {
     ]);
   }
   recent.sort((a, b) => b[0] - a[0]);
-  return { u: username, n, w, vp, quits, seat, recent: recent.slice(0, 20) };
+  return { u: username, n, w, vp, quits, seat, q, recent: recent.slice(0, 20) };
 }
 
 async function readJson(file, fallback) {

@@ -45,6 +45,8 @@ export interface PlayerSummary {
   /** [t, eloType, rank, points, nPlayers, playOrder, turns] */
   recent: [number, number, number, number, number, number, number][];
   modes?: Record<string, { rank: number; rating: number }>;
+  /** Per queue (eloType): [games, wins, sum of places, sum of VP] over the last 100 games. Added later; older snapshots lack it. */
+  q?: Record<string, [number, number, number, number]>;
 }
 
 export interface Meta {
