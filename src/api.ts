@@ -125,14 +125,6 @@ export interface History {
   gameDatas: HistoryGame[];
 }
 
-export interface Item {
-  category: number;
-  type: number;
-  name: I18n;
-  price?: number;
-  subscriptionOnly?: boolean;
-}
-
 export interface ModeCard {
   modeId: string;
   title: I18n;
@@ -162,7 +154,6 @@ export const api = {
   history: (name: string) => get<History>(`/v1/players/${enc(name)}/history`),
   ranked: (name: string, seasonType?: number) =>
     get<{ seasonType: number; modes: RankedMode[] }>(`/v1/players/${enc(name)}/ranked${seasonType ? `/${seasonType}` : ""}`),
-  items: (name: string) => get<Item[]>(`/v1/players/${enc(name)}/items`),
 };
 
 // --- Display helpers for colonist's i18n keys and enums. -------------------
