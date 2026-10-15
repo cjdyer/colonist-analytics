@@ -2,9 +2,9 @@
 
 A bare-bones [lolalytics](https://lolalytics.com/)-style stats site for [colonist.io](https://colonist.io): a React + Vite front-end on GitHub Pages, plus a small Cloudflare Worker API for live data.
 
-- **Meta** (snapshot): turn order and color tier lists (win rate vs. fair share, 95% intervals), seat win rate by game length, game-length histogram and maps. Filter by queue, time window and quitters.
+- **Meta** (snapshot): headline takeaways, turn order tier list (win rate vs. fair share, 95% intervals), seat win rate by game length, winning margins and VP by finishing place, busiest hours, top players in form, and game length. Filter by queue, time window and quitters.
 - **Leaderboards** (live): every ranked ladder, paged 100 at a time, filtered globally, by continent or by country, with name search.
-- **Players** (live): profile, per-season ranked stats with global/continent/country/region standings, last 100 games with every opponent, frequent opponents, per-seat win rates and owned items.
+- **Players** (live): profile and per-season ranked stats, plus insights from the last 100 games: recent form and streak, results by queue, finishing places, seat, game length, close games (losses by 1 VP), activity heatmap, momentum after wins/losses and by time of day, head-to-head records, and a filterable match history.
 - **Events** (live): Colonist Championship qualifiers and matchmaking modes.
 
 Without the API configured, the leaderboard and player pages fall back to the snapshot.

@@ -2,7 +2,7 @@ import { loadMeta, type Meta } from "../data";
 import { API_BASE, apiEnabled } from "../api";
 import { Loaded } from "../components";
 import { int } from "../format";
-import { useAsync } from "../hooks";
+import { useAsync, useTitle } from "../hooks";
 
 interface ApiIndex {
   routes: { path: string; upstream: string; description: string }[];
@@ -64,7 +64,9 @@ function AboutView({ meta }: { meta: Meta }) {
         <h2>How to read the stats</h2>
         <ul>
           <li><strong>Sample bias.</strong> Every snapshot game includes at least one top-ladder player, so these are high-rated games, not the whole population.</li>
-          <li><strong>Δ pp</strong> is the win rate minus the fair share (1 ÷ players), in percentage points. <strong>±</strong> is the 95% Wilson interval. Treat any Δ inside the ± as noise.</li>
+          <li><strong>vs fair</strong> is the win rate minus the fair share (1 ÷ players), in percentage points. <strong>±</strong> is the 95% Wilson interval. Treat any gap inside the ± as noise.</li>
+          <li><strong>Player insights</strong> (form, close games, momentum, head to head) come from the player's last 100 games, which is all colonist.io returns. Small groups are greyed out rather than hidden, so check the game counts.</li>
+          <li><strong>Sessions</strong> on player pages start after a break of 45 minutes or more. Times are shown in your browser's time zone.</li>
           <li><strong>Tiers</strong>: S+ ≥ +4, S ≥ +2, A ≥ +0.75, B within ±0.75, C &gt; −2, D below that. A tier needs a minimum sample, and a Δ inside the 95% interval is always B.</li>
           <li>Turn order is missing on some older games. Those games are left out of the seat tables.</li>
         </ul>
@@ -76,6 +78,7 @@ function AboutView({ meta }: { meta: Meta }) {
 }
 
 export function AboutPage() {
+  useTitle("About");
   const state = useAsync(loadMeta);
   return <Loaded state={state}>{(meta) => <AboutView meta={meta} />}</Loaded>;
 }
