@@ -1,6 +1,6 @@
 import { api, apiEnabled, i18n, type Championship } from "../api";
 import { Card, Empty, Loaded } from "../components";
-import { useAsync } from "../hooks";
+import { useAsync, useTitle } from "../hooks";
 
 const MODE_NAMES: Record<string, string> = {
   beginner: "Beginner vs bots",
@@ -94,6 +94,7 @@ function Championships() {
 }
 
 export function EventsPage() {
+  useTitle("Events");
   return (
     <>
       <header className="page-head">

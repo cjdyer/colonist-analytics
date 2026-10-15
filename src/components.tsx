@@ -1,5 +1,7 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import type { Async } from "./hooks";
+import { edge, rate, type Tally } from "./insights";
+import { pct, signedPp } from "./format";
 
 export function Tile({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
   return (
@@ -123,4 +125,95 @@ export function Tooltip() {
     return () => document.removeEventListener("pointermove", move);
   }, []);
   return <div ref={ref} className="tooltip" role="tooltip" />;
+}
+
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** Weekday × hour activity grid. One sequential hue: darker = more games. */
+export function WeekHeatmap({ grid, unit = "games" }: { grid: number[][]; unit?: string }) {
+  const max = Math.max(1, ...grid.flat());
+  return (
+    <div className="week-heat" role="img" aria-label={`${unit} by weekday and hour, local time`}>
+      <span />
+      {Array.from({ length: 24 }, (_, h) => (
+        <span key={h} className="wh-col">{h % 3 === 0 ? h : ""}</span>
+      ))}
+      {grid.map((row, d) => (
+        <Fragment key={d}>
+          <span className="wh-row">{DAYS[d]}</span>
+          {row.map((v, h) => (
+            <span
+              key={h}
+              className={`wh-cell ${v ? "" : "zero"}`}
+              style={{ "--a": (0.12 + 0.88 * (v / max)).toFixed(2) } as CSSProperties}
+              data-tip={`${DAYS[d]} ${String(h).padStart(2, "0")}:00–${String(h).padStart(2, "0")}:59 · ${v.toLocaleString()} ${unit}`}
+            />
+          ))}
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+/** Most recent games, newest on the left. Each cell shows the finishing place. */
+export function FormStrip({ games }: { games: { id: string; rank: number; players: number; vp: number; t: number }[] }) {
+  return (
+    <div className="form-strip" aria-label="Recent results, newest first">
+      {games.map((g) => (
+        <span
+          key={g.id}
+          className={`form-cell ${g.rank === 1 ? "win" : g.rank === g.players ? "last" : ""}`}
+          data-tip={`${g.rank === 1 ? "Win" : `${ordinal(g.rank)} of ${g.players}`} · ${g.vp} VP · ${new Date(g.t * 1000).toLocaleString()}`}
+        >
+          {g.rank === 1 ? "W" : g.rank}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export const ordinal = (n: number) => `${n}${["th", "st", "nd", "rd"][n % 100 >> 3 === 1 ? 0 : n % 10] ?? "th"}`;
+
+/** Win rate per group, against the fair share (1 ÷ players) as the midline. */
+export function RateRows({ rows, minGames = 8 }: { rows: { label: ReactNode; rec: Tally; hint?: string }[]; minGames?: number }) {
+  return (
+    <div className="table-wrap">
+      <table className="rate-rows">
+        <thead>
+          <tr>
+            <th />
+            <th className="num">Win rate</th>
+            <th className="num" data-tip="Win rate minus the fair share (1 ÷ players), in percentage points">vs fair</th>
+            <th className="bar-cell"><span className="sr">Bar</span></th>
+            <th className="num">Games</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => {
+            const enough = r.rec.n >= minGames;
+            const d = edge(r.rec);
+            return (
+              <tr key={i} className={enough ? "" : "thin"} data-tip={r.hint}>
+                <td className="name">{r.label}</td>
+                <td className="num">{enough ? <strong>{pct(rate(r.rec), 0)}</strong> : "–"}</td>
+                <td className={`num delta ${enough ? (d >= 0 ? "pos" : "neg") : ""}`}>{enough ? signedPp(d) : ""}</td>
+                <td className="bar-cell">{enough && <DeltaBar delta={d} range={0.25} />}</td>
+                <td className="num">{r.rec.n}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** A plain-language headline number with a one-line explanation. */
+export function Insight({ value, children, tone }: { value: ReactNode; children: ReactNode; tone?: "pos" | "neg" }) {
+  return (
+    <div className="insight">
+      <div className={`insight-value ${tone ?? ""}`}>{value}</div>
+      <div className="insight-text">{children}</div>
+    </div>
+  );
 }

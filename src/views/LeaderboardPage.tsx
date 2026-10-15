@@ -5,7 +5,7 @@ import { api, apiEnabled, CONTINENT_CODES, continentName, divisionName, type Lea
 import { LEADERBOARD_MODES } from "../enums";
 import { Empty, Loaded } from "../components";
 import { fixed, flag, int, playerPath } from "../format";
-import { useAsync } from "../hooks";
+import { useAsync, useTitle } from "../hooks";
 
 const MODES = Object.keys(LEADERBOARD_MODES);
 const PAGE = 100;
@@ -238,6 +238,7 @@ function SnapshotLoader({ mode }: { mode: string }) {
 export function LeaderboardPage() {
   const params = useParams();
   const mode = params.mode && MODES.includes(params.mode) ? params.mode : "Classic4P";
+  useTitle(`${LEADERBOARD_MODES[mode]} leaderboard`);
   if (params.mode && !MODES.includes(params.mode)) return <Empty>Unknown leaderboard. <Link to="/leaderboard/Classic4P">Classic 4P</Link></Empty>;
   return apiEnabled ? <LiveLeaderboard key={mode} mode={mode} /> : <SnapshotLoader mode={mode} />;
 }

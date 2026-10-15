@@ -20,3 +20,10 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[] = []): Async
   }, deps);
   return state;
 }
+
+/** Sets the browser tab title while the page is mounted. */
+export function useTitle(title: string) {
+  useEffect(() => {
+    document.title = title ? `${title} · Colonist Analytics` : "Colonist Analytics";
+  }, [title]);
+}
