@@ -1,0 +1,22 @@
+{
+  "name": "colonist-analytics-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Read-only, allowlisted, cached proxy for colonist.io's public JSON endpoints (Cloudflare Worker).",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260930.2",
+    "@types/node": "24.19.0",
+    "typescript": "5.6.3",
+    "wrangler": "4.145.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

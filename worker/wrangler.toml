@@ -1,0 +1,22 @@
+name = "colonist-analytics-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+# Browser origins allowed to read responses (comma-separated, exact match).
+# Set your GitHub Pages origin here, e.g. "https://<user>.github.io".
+[vars]
+ALLOWED_ORIGINS = "http://localhost:5173,http://localhost:4173"
+
+# Per-IP rate limit (Workers Rate Limiting binding). namespace_id is any
+# account-unique integer string you choose.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "4101"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60
+
+[observability]
+enabled = true
