@@ -1,4 +1,4 @@
-import type { Game, PlayerSummary, Seat } from "./data";
+import type { Game, Seat } from "./data";
 
 export interface Filters {
   queue: number | "all";
@@ -89,48 +89,32 @@ export const median = (xs: number[]) => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
 
-// --- Live lookup -----------------------------------------------------------
-// Mirrors summarisePlayer() in scripts/crawl.mjs, for live player pages.
-
-interface RawHistory {
-  profileUserId?: string;
-  gameDatas?: {
-    finished?: boolean;
-    startTime?: string;
-    turnCount?: number;
-    setting?: { eloType?: number };
-    players?: { userId?: string; username?: string; rank?: number; points?: number; playOrder?: number | null; quitWithPenalty?: boolean }[];
-  }[];
-}
-
-export function summariseHistory(username: string, raw: RawHistory): PlayerSummary {
-  const seat: [number, number][] = [[0, 0], [0, 0], [0, 0], [0, 0]];
-  let n = 0, w = 0, vp = 0, quits = 0;
-  const recent: PlayerSummary["recent"] = [];
-  for (const g of raw.gameDatas ?? []) {
-    const players = g.players ?? [];
-    const me = players.find((p) => String(p.userId) === String(raw.profileUserId));
-    if (!g.finished || !me) continue;
-    n++;
-    const won = me.rank === 1;
-    if (won) w++;
-    vp += Number(me.points) || 0;
-    if (me.quitWithPenalty) quits++;
-    const o = Number(me.playOrder) || 0;
-    if (o >= 1 && o <= 4 && players.length === 4) {
-      seat[o - 1][0]++;
-      if (won) seat[o - 1][1]++;
-    }
-    recent.push([
-      Math.round((Number(g.startTime) || 0) / 1000),
-      Number(g.setting?.eloType) || 0,
-      Number(me.rank) || 0,
-      Number(me.points) || 0,
-      players.length,
-      o,
-      Number(g.turnCount) || 0,
-    ]);
+/** Winner's VP minus the runner-up's, per game. */
+export function margins(games: Game[]): number[] {
+  const out: number[] = [];
+  for (const g of games) {
+    const win = g.seats.find((s) => s.rank === 1), second = g.seats.find((s) => s.rank === 2);
+    if (win && second) out.push(win.points - second.points);
   }
-  recent.sort((a, b) => b[0] - a[0]);
-  return { u: username, n, w, vp, quits, seat, recent: recent.slice(0, 20) };
+  return out;
 }
+
+/** Average VP and share of games within one VP of the winner, per finishing place. */
+export function vpByPlace(games: Game[], players: number) {
+  const rows = Array.from({ length: players }, (_, i) => ({ place: i + 1, n: 0, vp: 0, close: 0 }));
+  for (const g of games) {
+    if (g.seats.length !== players) continue;
+    const top = g.seats.find((s) => s.rank === 1)?.points ?? 0;
+    for (const s of g.seats) {
+      const r = rows[s.rank - 1];
+      if (!r) continue;
+      r.n++;
+      r.vp += s.points;
+      if (s.rank > 1 && top - s.points <= 1) r.close++;
+    }
+  }
+  return rows;
+}
+
+/** Lower bound of the 95% Wilson interval: ranks win rates by how sure we are. */
+export const wilsonLow = (wins: number, n: number) => (n ? Math.max(0, wins / n - ci95(wins, n)) : 0);
