@@ -1,7 +1,12 @@
 name = "colonist-analytics-api"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
-workers_dev = true
+# Served only on the custom domain. Cloudflare creates its DNS record and
+# certificate on deploy; the colonytics.com zone must be in this account.
+workers_dev = false
+routes = [
+  { pattern = "api.colonytics.com", custom_domain = true }
+]
 
 # Browser origins allowed to read responses (comma-separated, exact match).
 # Set your GitHub Pages origin here, e.g. "https://<user>.github.io".
