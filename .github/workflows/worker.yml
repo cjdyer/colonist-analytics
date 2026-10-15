@@ -1,0 +1,56 @@
+name: API worker
+
+on:
+  push:
+    branches: [main]
+    paths: ["worker/**", ".github/workflows/worker.yml"]
+  pull_request:
+    paths: ["worker/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: npm ci
+      - name: Deploy to Cloudflare
+        env:
+          # Scoped API token: "Edit Cloudflare Workers" on this account only.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # e.g. "https://<user>.github.io" (repo variable). Overrides wrangler.toml.
+          ALLOWED_ORIGINS: ${{ vars.API_ALLOWED_ORIGINS }}
+        run: |
+          if [ -z "$ALLOWED_ORIGINS" ]; then echo "Set the API_ALLOWED_ORIGINS repo variable"; exit 1; fi
+          npx wrangler deploy --var "ALLOWED_ORIGINS:$ALLOWED_ORIGINS"
