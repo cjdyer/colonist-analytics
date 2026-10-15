@@ -75,7 +75,7 @@ function TurnOrder({ rows, minGames, seatCount }: { rows: Bucket[]; minGames: nu
             <tr>
               <th>Seat</th><th>Tier</th><th className="num">Win rate</th><th className="num">vs fair</th>
               <th className="bar-cell"><span className="sr">Bar</span></th><th className="num">Avg VP</th>
-              <th className="num">Avg finish</th><th className="num">Games</th>
+              {seatCount > 2 && <th className="num">Avg finish</th>}<th className="num">Games</th>
             </tr>
           </thead>
           <tbody>
@@ -83,7 +83,7 @@ function TurnOrder({ rows, minGames, seatCount }: { rows: Bucket[]; minGames: nu
               const ci = ci95(b.wins, b.games), d = delta(b), wr = winRate(b);
               return (
                 <tr key={b.key}>
-                  <td className="name"><SeatBadge n={b.key} />{b.key === 1 ? "First" : `Seat ${b.key}`}</td>
+                  <td className="name"><SeatBadge n={b.key} />{seatCount === 2 ? (b.key === 1 ? "Going first" : "Going second") : b.key === 1 ? "First" : `Seat ${b.key}`}</td>
                   <td><TierBadge tier={tier(b, minGames)} /></td>
                   <td className="num" data-tip={`95% interval ${pct(Math.max(0, wr - ci))} – ${pct(wr + ci)}`}>
                     <strong>{pct(wr, 1)}</strong> <small>±{(ci * 100).toFixed(1)}</small>
@@ -91,7 +91,7 @@ function TurnOrder({ rows, minGames, seatCount }: { rows: Bucket[]; minGames: nu
                   <td className={`num delta ${d >= 0 ? "pos" : "neg"}`}>{signedPp(d)}</td>
                   <td className="bar-cell"><DeltaBar delta={d} /></td>
                   <td className="num">{fixed(b.vp / b.games, 2)}</td>
-                  <td className="num">{fixed(b.finish / b.games, 2)}</td>
+                  {seatCount > 2 && <td className="num">{fixed(b.finish / b.games, 2)}</td>}
                   <td className="num">{int(b.games)}</td>
                 </tr>
               );
@@ -127,7 +127,7 @@ function LengthHeat({ games, seats }: { games: Game[]; seats: number }) {
           <tbody>
             {Array.from({ length: seats }, (_, s) => (
               <tr key={s}>
-                <td className="name"><SeatBadge n={s + 1} />Seat {s + 1}</td>
+                <td className="name"><SeatBadge n={s + 1} />{seats === 2 ? (s === 0 ? "Going first" : "Going second") : `Seat ${s + 1}`}</td>
                 {cols.map((cg, i) => {
                   const b = bucketSeats(cg, (seat) => (seat.order === s + 1 ? 1 : null))[0];
                   if (!b || b.games < 20) return <td key={i} className="num heat na">–</td>;
@@ -156,16 +156,17 @@ function CloseFinishes({ games, seats }: { games: Game[]; seats: number }) {
   const m = margins(games);
   if (m.length < 50) return null;
   const counts = new Map<number, number>();
-  for (const x of m) counts.set(Math.min(x, 6), (counts.get(Math.min(x, 6)) ?? 0) + 1);
+  const cap = seats === 2 ? 10 : 6;
+  for (const x of m) counts.set(Math.min(x, cap), (counts.get(Math.min(x, cap)) ?? 0) + 1);
   const places = seats >= 2 && seats <= 4 ? vpByPlace(games, seats) : [];
   return (
-    <Card title="How close games are" sub="Winning margin: the winner's VP minus the runner-up's.">
+    <Card title="How close games are" sub={`Winning margin: the winner's VP minus ${seats === 2 ? "the loser's" : "the runner-up's"}.`}>
       <BarChart
         label="Games by winning margin"
         height={150}
-        bins={[0, 1, 2, 3, 4, 5, 6].filter((k) => k > 0 || counts.get(0)).map((k) => {
+        bins={Array.from({ length: cap + 1 }, (_, k) => k).filter((k) => k > 0 || counts.get(0)).map((k) => {
           const c = counts.get(k) ?? 0;
-          const name = k === 6 ? "6+ VP" : `${k} VP`;
+          const name = k === cap ? `${cap}+ VP` : `${k} VP`;
           return { label: name, value: c, tip: `Won by ${name}: ${int(c)} games (${pct(c / m.length)})` };
         })}
       />
@@ -176,7 +177,7 @@ function CloseFinishes({ games, seats }: { games: Game[]; seats: number }) {
             <tbody>
               {places.filter((r) => r.n).map((r) => (
                 <tr key={r.place}>
-                  <td className="name">{r.place === 1 ? "Winner" : ordinal(r.place)}</td>
+                  <td className="name">{r.place === 1 ? "Winner" : seats === 2 ? "Loser" : ordinal(r.place)}</td>
                   <td className="num">{fixed(r.vp / r.n, 1)}</td>
                   <td className="num">{r.place === 1 ? "–" : pct(r.close / r.n, 0)}</td>
                 </tr>
@@ -211,6 +212,7 @@ function inForm(players: Record<string, PlayerSummary>, board: LeaderboardRow[],
 
 function InForm({ queue, players, boards }: { queue: number; players: Record<string, PlayerSummary>; boards: Record<string, LeaderboardRow[]> }) {
   const ladder = QUEUE_LADDER[queue];
+  const duel = ladder === "Classic1v1";
   const { rows, full } = useMemo(() => inForm(players, boards[ladder] ?? [], queue), [players, boards, ladder, queue]);
   if (!rows.length) return null;
   return (
@@ -220,7 +222,7 @@ function InForm({ queue, players, boards }: { queue: number; players: Record<str
     >
       <div className="table-wrap">
         <table>
-          <thead><tr><th>Player</th><th className="num">Ladder</th><th className="num">Games</th><th className="num">Win rate</th><th className="num">Avg finish</th></tr></thead>
+          <thead><tr><th>Player</th><th className="num">Ladder</th><th className="num">Games</th><th className="num">Win rate</th>{duel ? null : <th className="num">Avg finish</th>}</tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.name}>
@@ -228,7 +230,7 @@ function InForm({ queue, players, boards }: { queue: number; players: Record<str
                 <td className="num muted">{r.rank ? `#${int(r.rank)}` : "–"}</td>
                 <td className="num">{r.n}</td>
                 <td className="num"><strong>{pct(r.w / r.n, 0)}</strong></td>
-                <td className="num">{fixed(r.place / r.n, 2)}</td>
+                {duel ? null : <td className="num">{fixed(r.place / r.n, 2)}</td>}
               </tr>
             ))}
           </tbody>
