@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-19T09:04:31.916Z",
+  "generatedAt": "2026-10-20T08:43:21.904Z",
   "topN": 200,
   "modes": [
     "Classic4P",
@@ -7,10 +7,10 @@
     "CitiesAndKnights4P",
     "Rush4P"
   ],
-  "playersCrawled": 769,
+  "playersCrawled": 767,
   "historyFailures": 0,
   "gamesTotal": 60000,
-  "gamesAdded": 3951,
+  "gamesAdded": 4682,
   "retentionDays": 60,
   "season": {
     "number": 18,
