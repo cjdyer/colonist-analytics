@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-23T08:41:43.349Z",
+  "generatedAt": "2026-10-24T08:17:29.401Z",
   "topN": 200,
   "modes": [
     "Classic4P",
@@ -10,7 +10,7 @@
   "playersCrawled": 763,
   "historyFailures": 0,
   "gamesTotal": 60000,
-  "gamesAdded": 3862,
+  "gamesAdded": 3914,
   "retentionDays": 60,
   "season": {
     "number": 18,
